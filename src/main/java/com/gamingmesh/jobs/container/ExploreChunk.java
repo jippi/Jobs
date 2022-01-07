@@ -9,110 +9,113 @@ import net.Zrips.CMILib.Logs.CMIDebug;
 
 public class ExploreChunk {
 
-    private List<Integer> playerIds = new ArrayList<>();
-    private int dbId = -1;
-    private boolean updated = false;
+	private List<Integer> playerIds = new ArrayList<>();
+	private int dbId = -1;
+	private boolean updated = false;
 
-    public ExploreRespond addPlayer(int playerId) {
-	if (isFullyExplored()) {
-	    return new ExploreRespond(Jobs.getExplore().getPlayerAmount() + 1, false);
+	public ExploreRespond addPlayer(int playerId) {
+		Jobs.getPluginLogger().warning("Adding player " + playerId + " to chunk " + dbId);
+
+		if (isFullyExplored()) {
+			return new ExploreRespond(Jobs.getExplore().getPlayerAmount() + 1, false);
+		}
+
+		boolean newChunkForPlayer = false;
+		if (!playerIds.contains(playerId)) {
+			if (playerIds.size() < Jobs.getExplore().getPlayerAmount()) {
+				playerIds.add(playerId);
+				updated = true;
+			}
+
+			newChunkForPlayer = true;
+		}
+
+		if (Jobs.getGCManager().ExploreCompact && playerIds.size() >= Jobs.getExplore().getPlayerAmount()) {
+			playerIds = null;
+		}
+
+		List<Integer> players = getPlayers();
+
+		return new ExploreRespond(newChunkForPlayer ? players.size() : players.size() + 1, newChunkForPlayer);
 	}
 
-	boolean newChunkForPlayer = false;
-	if (!playerIds.contains(playerId)) {
-	    if (playerIds.size() < Jobs.getExplore().getPlayerAmount()) {
-		playerIds.add(playerId);
-		updated = true;
-	    }
-
-	    newChunkForPlayer = true;
+	public boolean isAlreadyVisited(int playerId) {
+		return isFullyExplored() || playerIds.contains(playerId);
 	}
 
-	if (Jobs.getGCManager().ExploreCompact && playerIds.size() >= Jobs.getExplore().getPlayerAmount()) {
-	    playerIds = null;
+	public int getCount() {
+		return isFullyExplored() ? Jobs.getExplore().getPlayerAmount() : playerIds.size();
 	}
 
-	List<Integer> players = getPlayers();
-
-	return new ExploreRespond(newChunkForPlayer ? players.size() : players.size() + 1, newChunkForPlayer);
-    }
-
-    public boolean isAlreadyVisited(int playerId) {
-	return isFullyExplored() || playerIds.contains(playerId);
-    }
-
-    public int getCount() {
-	return isFullyExplored() ? Jobs.getExplore().getPlayerAmount() : playerIds.size();
-    }
-
-    public List<Integer> getPlayers() {
-	return playerIds == null ? new ArrayList<>() : playerIds;
-    }
-
-    public String serializeNames() {
-	if (playerIds == null)
-	    return null;
-
-	StringBuilder s = new StringBuilder();
-	for (Integer one : playerIds) {
-	    if (s.length() != 0)
-		s.append(';');
-
-	    s.append(one);
-	}
-	return s.toString();
-    }
-
-    public void deserializeNames(String names) {
-	if (names == null || names.isEmpty()) {
-	    playerIds = null;
-	    return;
+	public List<Integer> getPlayers() {
+		return playerIds == null ? new ArrayList<>() : playerIds;
 	}
 
-	if (playerIds == null) {
-	    playerIds = new ArrayList<>();
+	public String serializeNames() {
+		if (playerIds == null)
+			return null;
+
+		StringBuilder s = new StringBuilder();
+		for (Integer one : playerIds) {
+			if (s.length() != 0)
+				s.append(';');
+
+			s.append(one);
+		}
+		return s.toString();
 	}
 
-	for (String one : names.split(";")) {
-	    try {
-		int id = Integer.parseInt(one);
+	public void deserializeNames(String names) {
+		if (names == null || names.isEmpty()) {
+			playerIds = null;
+			return;
+		}
 
-		if (Jobs.getPlayerManager().getPlayerInfo(id) != null)
-		    playerIds.add(id);
-	    } catch (NumberFormatException e) {
-		updated = true;
-		JobsPlayer jp = Jobs.getPlayerManager().getJobsPlayer(one);
+		if (playerIds == null) {
+			playerIds = new ArrayList<>();
+		}
 
-		if (jp != null)
-		    playerIds.add(jp.getUserId());
-	    }
+		for (String one : names.split(";")) {
+			try {
+				int id = Integer.parseInt(one);
+
+				if (Jobs.getPlayerManager().getPlayerInfo(id) != null)
+					playerIds.add(id);
+			} catch (NumberFormatException e) {
+				updated = true;
+				JobsPlayer jp = Jobs.getPlayerManager().getJobsPlayer(one);
+
+				if (jp != null)
+					playerIds.add(jp.getUserId());
+			}
+		}
+
+		if (Jobs.getGCManager().ExploreCompact && playerIds.size() >= Jobs.getExplore().getPlayerAmount()) {
+			playerIds = null;
+
+			if (!names.isEmpty())
+				updated = true;
+		}
 	}
 
-	if (Jobs.getGCManager().ExploreCompact && playerIds.size() >= Jobs.getExplore().getPlayerAmount()) {
-	    playerIds = null;
-
-	    if (!names.isEmpty())
-		updated = true;
+	public int getDbId() {
+		return dbId;
 	}
-    }
 
-    public int getDbId() {
-	return dbId;
-    }
+	public void setDbId(int dbId) {
+		this.dbId = dbId;
+		Jobs.getPluginLogger().warning("Setting dbId to " + dbId);
+	}
 
-    public void setDbId(int dbId) {
-	this.dbId = dbId;
-    }
+	public boolean isUpdated() {
+		return updated;
+	}
 
-    public boolean isUpdated() {
-	return updated;
-    }
+	public void setUpdated(boolean updated) {
+		this.updated = updated;
+	}
 
-    public void setUpdated(boolean updated) {
-	this.updated = updated;
-    }
-
-    public boolean isFullyExplored() {
-	return playerIds == null || playerIds.size() >= Jobs.getExplore().getPlayerAmount();
-    }
+	public boolean isFullyExplored() {
+		return playerIds == null || playerIds.size() >= Jobs.getExplore().getPlayerAmount();
+	}
 }
